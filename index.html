@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Статьи для чтения — Research Paper Tracker</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="page">
+    <header class="header">
+      <p class="brand">Research Paper Tracker</p>
+      <h1>Статьи для чтения</h1>
+      <p class="lead">Литература к вашей научной статье. Список хранится в этом браузере.</p>
+    </header>
+
+    <form id="paper-form" class="card form" novalidate>
+      <label class="field">
+        <span class="label">Название статьи</span>
+        <input id="title" type="text" autocomplete="off" placeholder="Deep learning">
+      </label>
+      <label class="field">
+        <span class="label">DOI <span class="label-note">— можно вставить ссылку</span></span>
+        <input id="doi" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="10.1038/nature14539">
+      </label>
+      <p id="hint" class="hint" role="alert"></p>
+      <button type="submit" class="btn">Добавить</button>
+    </form>
+
+    <section class="papers" aria-labelledby="counter">
+      <h2 id="counter" class="counter">Всего статей: 0</h2>
+      <p id="empty" class="empty">Список пуст — добавьте первую статью.</p>
+      <ul id="list" class="list"></ul>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

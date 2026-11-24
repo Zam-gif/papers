@@ -1,0 +1,152 @@
+'use strict';
+
+// Research Paper Tracker: список статей хранится в localStorage
+const STORAGE_KEY = 'papers';
+
+const form = document.getElementById('paper-form');
+const titleInput = document.getElementById('title');
+const doiInput = document.getElementById('doi');
+const hint = document.getElementById('hint');
+const list = document.getElementById('list');
+const empty = document.getElementById('empty');
+const counter = document.getElementById('counter');
+
+let papers = loadPapers();
+
+function loadPapers() {
+  try {
+    const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (!Array.isArray(data)) return [];
+    return data
+      .filter((p) => p && typeof p.title === 'string' && p.title.trim())
+      .map((p) => ({
+        id: String(p.id || newId()),
+        title: p.title,
+        doi: typeof p.doi === 'string' ? p.doi : '',
+        addedAt: Number.isFinite(p.addedAt) ? p.addedAt : Date.now(),
+      }));
+  } catch {
+    return [];
+  }
+}
+
+function savePapers() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(papers));
+  } catch {
+    showHint('Не удалось сохранить: браузер не даёт хранить данные.');
+  }
+}
+
+function newId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+// https://doi.org/10.1038/nature14539 и doi:10.1038/nature14539 → 10.1038/nature14539
+function normalizeDoi(raw) {
+  return raw
+    .trim()
+    .replace(/^https?:\/\/(dx\.)?doi\.org\//i, '')
+    .replace(/^doi:\s*/i, '')
+    .trim();
+}
+
+function isValidDoi(doi) {
+  return /^10\.\d+\/\S+$/.test(doi);
+}
+
+function doiLink(doi) {
+  return 'https://doi.org/' + encodeURIComponent(doi).replace(/%2F/gi, '/');
+}
+
+// Дата — ДД.ММ.ГГГГ по местному времени
+function formatDate(timestamp) {
+  const d = new Date(timestamp);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
+}
+
+function showHint(text, input) {
+  hint.textContent = text;
+  if (input) {
+    input.setAttribute('aria-invalid', 'true');
+    input.focus();
+  }
+}
+
+function clearHint() {
+  hint.textContent = '';
+  titleInput.removeAttribute('aria-invalid');
+  doiInput.removeAttribute('aria-invalid');
+}
+
+function renderPaper(paper) {
+  const item = document.createElement('li');
+  item.className = 'paper';
+
+  const title = document.createElement('h3');
+  title.className = 'paper-title';
+  title.textContent = paper.title;
+
+  const doi = document.createElement('p');
+  doi.className = 'paper-doi';
+  if (paper.doi) {
+    const link = document.createElement('a');
+    link.href = doiLink(paper.doi);
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.textContent = paper.doi;
+    doi.append('DOI: ', link);
+  } else {
+    doi.textContent = 'DOI не указан';
+  }
+
+  const date = document.createElement('p');
+  date.className = 'paper-date';
+  date.textContent = `Добавлена ${formatDate(paper.addedAt)}`;
+
+  item.append(title, doi, date);
+  return item;
+}
+
+function render() {
+  list.replaceChildren(...papers.map(renderPaper));
+  empty.hidden = papers.length > 0;
+  counter.textContent = `Всего статей: ${papers.length}`;
+}
+
+form.addEventListener('submit', (event) => {
+  event.preventDefault();
+  clearHint();
+
+  const title = titleInput.value.trim();
+  const doi = normalizeDoi(doiInput.value);
+
+  if (!title) {
+    showHint('Введите название статьи', titleInput);
+    return;
+  }
+  if (doi && !isValidDoi(doi)) {
+    showHint('DOI начинается с 10. и содержит /, например 10.1038/nature14539', doiInput);
+    return;
+  }
+  if (doi && papers.some((p) => p.doi.toLowerCase() === doi.toLowerCase())) {
+    showHint('Статья с таким DOI уже есть в списке', doiInput);
+    return;
+  }
+
+  papers.unshift({ id: newId(), title, doi, addedAt: Date.now() });
+  savePapers();
+  render();
+  form.reset();
+  titleInput.focus();
+});
+
+// Начали исправлять поле — убираем подсказку
+[titleInput, doiInput].forEach((input) => {
+  input.addEventListener('input', () => {
+    if (input.hasAttribute('aria-invalid')) clearHint();
+  });
+});
+
+render();
