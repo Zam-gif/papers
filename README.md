@@ -4,19 +4,31 @@
 
 ## Что умеет
 
-1. **Добавить статью** — название и DOI, DOI можно вставить ссылкой. Новые статьи сверху, над списком счётчик. Требования: [specs/001-dobavit-statyu.md](specs/001-dobavit-statyu.md)
+1. **Добавить статью** — название и DOI, DOI можно вставить ссылкой. Новые статьи сверху. Требования: [specs/001-dobavit-statyu.md](specs/001-dobavit-statyu.md)
+2. **Статус чтения и счётчики** — у каждой статьи статус «Прочитать», «Читаю» или «Прочитано», над списком счётчики по статусам. Требования: [specs/002-status-chteniya.md](specs/002-status-chteniya.md)
 
 ## Как открыть и проверить
 
 Откройте `index.html` двойным щелчком.
 
+### Добавить статью
+
 | # | Что сделать | Что должно получиться |
 |---|---|---|
-| 1 | Добавить «Deep learning», DOI `10.1038/nature14539` | статья в списке, «Всего статей: 1» |
-| 2 | Добавить «A programmable dual-RNA–guided DNA endonuclease in adaptive bacterial immunity», в DOI вставить ссылку `https://doi.org/10.1126/science.1225829` | в списке `10.1126/science.1225829`, «Всего статей: 2» |
-| 3 | Добавить «Induction of pluripotent stem cells from mouse embryonic and adult fibroblast cultures by defined factors», DOI `doi:10.1016/j.cell.2006.07.024` | в списке `10.1016/j.cell.2006.07.024`, «Всего статей: 3», эта статья сверху |
+| 1 | Добавить «Deep learning», DOI `10.1038/nature14539` | статья в списке, «Всего: 1» |
+| 2 | Добавить «A programmable dual-RNA–guided DNA endonuclease in adaptive bacterial immunity», в DOI вставить ссылку `https://doi.org/10.1126/science.1225829` | в списке `10.1126/science.1225829`, «Всего: 2» |
+| 3 | Добавить «Induction of pluripotent stem cells from mouse embryonic and adult fibroblast cultures by defined factors», DOI `doi:10.1016/j.cell.2006.07.024` | в списке `10.1016/j.cell.2006.07.024`, «Всего: 3», эта статья сверху |
 | 4 | Ещё раз DOI `10.1038/NATURE14539` | подсказка «Статья с таким DOI уже есть в списке» |
 | 5 | Нажать «Добавить» с пустым названием | подсказка «Введите название статьи» |
 | 6 | DOI `12345` | подсказка про формат DOI, статья не добавлена |
 | 7 | Нажать на DOI | открывается страница статьи на doi.org |
 | 8 | F5 | 3 статьи на месте |
+
+### Статус чтения
+
+| # | Что сделать | Что над списком |
+|---|---|---|
+| 1 | Добавить «Quantum supremacy using a programmable superconducting processor», DOI `10.1038/s41586-019-1666-5` | Всего: 4 · Прочитать: 4 · Читаю: 0 · Прочитано: 0 |
+| 2 | У «Deep learning» выбрать «Читаю» | Всего: 4 · Прочитать: 3 · Читаю: 1 · Прочитано: 0, полоска слева оранжевая |
+| 3 | У «A programmable dual-RNA–guided…» выбрать «Прочитано» | Всего: 4 · Прочитать: 2 · Читаю: 1 · Прочитано: 1, полоска зелёная |
+| 4 | F5 | статусы и счётчики те же |

@@ -3,6 +3,14 @@
 // Research Paper Tracker: список статей хранится в localStorage
 const STORAGE_KEY = 'papers';
 
+// Статусы чтения: ключ хранится в localStorage, подпись видна на странице
+const STATUSES = {
+  toread: 'Прочитать',
+  reading: 'Читаю',
+  done: 'Прочитано',
+};
+const DEFAULT_STATUS = 'toread';
+
 const form = document.getElementById('paper-form');
 const titleInput = document.getElementById('title');
 const doiInput = document.getElementById('doi');
@@ -24,6 +32,8 @@ function loadPapers() {
         title: p.title,
         doi: typeof p.doi === 'string' ? p.doi : '',
         addedAt: Number.isFinite(p.addedAt) ? p.addedAt : Date.now(),
+        // статьи, добавленные до статусов, получают «Прочитать»
+        status: STATUSES[p.status] ? p.status : DEFAULT_STATUS,
       }));
   } catch {
     return [];
@@ -80,9 +90,27 @@ function clearHint() {
   doiInput.removeAttribute('aria-invalid');
 }
 
+function renderStatusSelect(paper) {
+  const label = document.createElement('label');
+  label.className = 'paper-status';
+
+  const text = document.createElement('span');
+  text.textContent = 'Статус';
+
+  const select = document.createElement('select');
+  select.dataset.id = paper.id;
+  Object.entries(STATUSES).forEach(([value, name]) => {
+    select.add(new Option(name, value, false, value === paper.status));
+  });
+
+  label.append(text, select);
+  return label;
+}
+
 function renderPaper(paper) {
   const item = document.createElement('li');
   item.className = 'paper';
+  item.dataset.status = paper.status;
 
   const title = document.createElement('h3');
   title.className = 'paper-title';
@@ -105,14 +133,28 @@ function renderPaper(paper) {
   date.className = 'paper-date';
   date.textContent = `Добавлена ${formatDate(paper.addedAt)}`;
 
-  item.append(title, doi, date);
+  const footer = document.createElement('div');
+  footer.className = 'paper-footer';
+  footer.append(date, renderStatusSelect(paper));
+
+  item.append(title, doi, footer);
   return item;
+}
+
+// «Всего: 4 · Прочитать: 2 · Читаю: 1 · Прочитано: 1»
+function renderCounter() {
+  const parts = [`Всего: ${papers.length}`];
+  Object.entries(STATUSES).forEach(([value, name]) => {
+    const count = papers.filter((p) => p.status === value).length;
+    parts.push(`${name}: ${count}`);
+  });
+  counter.textContent = parts.join(' · ');
 }
 
 function render() {
   list.replaceChildren(...papers.map(renderPaper));
   empty.hidden = papers.length > 0;
-  counter.textContent = `Всего статей: ${papers.length}`;
+  renderCounter();
 }
 
 form.addEventListener('submit', (event) => {
@@ -135,11 +177,24 @@ form.addEventListener('submit', (event) => {
     return;
   }
 
-  papers.unshift({ id: newId(), title, doi, addedAt: Date.now() });
+  papers.unshift({ id: newId(), title, doi, addedAt: Date.now(), status: DEFAULT_STATUS });
   savePapers();
   render();
   form.reset();
   titleInput.focus();
+});
+
+// Смена статуса: меняем только карточку и счётчики, фокус остаётся на списке
+list.addEventListener('change', (event) => {
+  const select = event.target.closest('select[data-id]');
+  if (!select) return;
+  const paper = papers.find((p) => p.id === select.dataset.id);
+  if (!paper || !STATUSES[select.value]) return;
+
+  paper.status = select.value;
+  select.closest('.paper').dataset.status = paper.status;
+  savePapers();
+  renderCounter();
 });
 
 // Начали исправлять поле — убираем подсказку

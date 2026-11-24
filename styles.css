@@ -9,6 +9,9 @@
   --accent-text: #ffffff;
   --danger: #c0392b;
   --radius: 12px;
+  --status-toread: #8a93a3;
+  --status-reading: #d48806;
+  --status-done: #2e9e5b;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
 }
 
@@ -66,7 +69,8 @@ body {
 .label { font-size: .9rem; font-weight: 600; }
 .label-note { font-weight: 400; color: var(--muted); }
 
-input {
+input,
+select {
   width: 100%;
   min-width: 0;
   min-height: 44px;
@@ -78,7 +82,8 @@ input {
   border: 1px solid var(--input-line);
   border-radius: 8px;
 }
-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+input:focus,
+select:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
 input[aria-invalid="true"] { border-color: var(--danger); }
 
 .hint { margin: 0; color: var(--danger); font-size: .9rem; }
@@ -113,8 +118,11 @@ input[aria-invalid="true"] { border-color: var(--danger); }
   padding: 14px 16px;
   background: var(--card);
   border: 1px solid var(--line);
+  border-left: 5px solid var(--status-toread);
   border-radius: var(--radius);
 }
+.paper[data-status="reading"] { border-left-color: var(--status-reading); }
+.paper[data-status="done"] { border-left-color: var(--status-done); }
 .paper-title { margin: 0 0 6px; font-size: 1rem; overflow-wrap: anywhere; }
 .paper-doi,
 .paper-date { margin: 0; color: var(--muted); font-size: .9rem; overflow-wrap: anywhere; }
@@ -124,3 +132,21 @@ input[aria-invalid="true"] { border-color: var(--danger); }
   min-height: 44px;
   color: var(--accent);
 }
+
+/* Низ карточки: дата и статус */
+.paper-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-top: 6px;
+}
+.paper-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: .9rem;
+}
+.paper-status select { width: auto; padding: 8px 10px; }
