@@ -107,6 +107,16 @@ function renderStatusSelect(paper) {
   return label;
 }
 
+function renderDeleteButton(paper) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'btn-delete';
+  button.dataset.id = paper.id;
+  button.textContent = 'Удалить';
+  button.setAttribute('aria-label', `Удалить статью «${paper.title}»`);
+  return button;
+}
+
 function renderPaper(paper) {
   const item = document.createElement('li');
   item.className = 'paper';
@@ -135,7 +145,10 @@ function renderPaper(paper) {
 
   const footer = document.createElement('div');
   footer.className = 'paper-footer';
-  footer.append(date, renderStatusSelect(paper));
+  const actions = document.createElement('div');
+  actions.className = 'paper-actions';
+  actions.append(renderStatusSelect(paper), renderDeleteButton(paper));
+  footer.append(date, actions);
 
   item.append(title, doi, footer);
   return item;
@@ -195,6 +208,23 @@ list.addEventListener('change', (event) => {
   select.closest('.paper').dataset.status = paper.status;
   savePapers();
   renderCounter();
+});
+
+// Удаление: спрашиваем подтверждение, потом убираем из списка и localStorage
+list.addEventListener('click', (event) => {
+  const button = event.target.closest('.btn-delete');
+  if (!button) return;
+  const index = papers.findIndex((p) => p.id === button.dataset.id);
+  if (index === -1) return;
+  if (!confirm(`Удалить статью «${papers[index].title}»?`)) return;
+
+  papers.splice(index, 1);
+  savePapers();
+  render();
+
+  // фокус — на следующую статью, а если статей нет — на поле названия
+  const next = list.children[index] || list.lastElementChild;
+  (next ? next.querySelector('.btn-delete') : titleInput).focus();
 });
 
 // Начали исправлять поле — убираем подсказку
