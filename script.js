@@ -34,18 +34,81 @@ function loadPapers() {
         addedAt: Number.isFinite(p.addedAt) ? p.addedAt : Date.now(),
         // статьи, добавленные до статусов, получают «Прочитать»
         status: STATUSES[p.status] ? p.status : DEFAULT_STATUS,
+        conclusions: typeof p.conclusions === 'string' ? p.conclusions : '',
       }));
   } catch {
     return [];
   }
 }
 
-function savePapers() {
+function savePapers(nextPapers) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(papers));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextPapers));
+    papers = nextPapers;
+    return true;
   } catch {
-    showHint('Не удалось сохранить: браузер не даёт хранить данные.');
+    return false;
   }
+}
+
+const STORAGE_ERROR = 'Не удалось сохранить. Проверьте доступ к хранилищу браузера и свободное место, затем повторите попытку.';
+
+function updatePaper(id, changes) {
+  return savePapers(papers.map((p) => p.id === id ? { ...p, ...changes } : p));
+}
+
+function recordMessage(element, message, isError = false) {
+  element.textContent = message;
+  element.dataset.error = String(isError);
+}
+
+function hasRecords(paper) {
+  return Boolean(paper.conclusions.trim());
+}
+
+function updateRecordsView() {
+  empty.hidden = papers.length > 0;
+}
+
+function renderNotes(paper) {
+  const details = document.createElement('details');
+  details.className = 'paper-notes';
+  const summary = document.createElement('summary');
+  summary.textContent = 'Заметки';
+  const content = document.createElement('div');
+  content.className = 'notes-content';
+  const noteForm = document.createElement('form');
+  noteForm.className = 'notes-form';
+  const noteLabel = document.createElement('label');
+  noteLabel.className = 'field';
+  noteLabel.textContent = 'Выводы';
+  const note = document.createElement('textarea');
+  note.value = paper.conclusions;
+  note.rows = 4;
+  noteLabel.append(note);
+  const save = document.createElement('button');
+  save.className = 'btn';
+  save.type = 'submit';
+  save.textContent = 'Сохранить выводы';
+  const noteStatus = document.createElement('p');
+  noteStatus.className = 'record-status';
+  noteStatus.setAttribute('role', 'status');
+  note.addEventListener('input', () => recordMessage(noteStatus, 'Есть несохранённые изменения.'));
+  noteForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (!updatePaper(paper.id, { conclusions: note.value.trim() })) {
+      recordMessage(noteStatus, STORAGE_ERROR, true);
+      return;
+    }
+    note.value = papers.find((p) => p.id === paper.id).conclusions;
+    recordMessage(noteStatus, 'Выводы сохранены.');
+    updateRecordsView();
+  });
+  noteForm.append(noteLabel, save, noteStatus);
+
+  content.append(noteForm);
+  details.append(summary, content);
+  return details;
 }
 
 function newId() {
@@ -120,6 +183,7 @@ function renderDeleteButton(paper) {
 function renderPaper(paper) {
   const item = document.createElement('li');
   item.className = 'paper';
+  item.dataset.id = paper.id;
   item.dataset.status = paper.status;
 
   const title = document.createElement('h3');
@@ -150,7 +214,7 @@ function renderPaper(paper) {
   actions.append(renderStatusSelect(paper), renderDeleteButton(paper));
   footer.append(date, actions);
 
-  item.append(title, doi, footer);
+  item.append(title, doi, footer, renderNotes(paper));
   return item;
 }
 
@@ -168,6 +232,7 @@ function render() {
   list.replaceChildren(...papers.map(renderPaper));
   empty.hidden = papers.length > 0;
   renderCounter();
+  updateRecordsView();
 }
 
 form.addEventListener('submit', (event) => {
@@ -190,9 +255,14 @@ form.addEventListener('submit', (event) => {
     return;
   }
 
-  papers.unshift({ id: newId(), title, doi, addedAt: Date.now(), status: DEFAULT_STATUS });
-  savePapers();
-  render();
+  const paper = { id: newId(), title, doi, addedAt: Date.now(), status: DEFAULT_STATUS, conclusions: '' };
+  if (!savePapers([paper, ...papers])) {
+    showHint(STORAGE_ERROR);
+    return;
+  }
+  list.prepend(renderPaper(paper));
+  renderCounter();
+  updateRecordsView();
   form.reset();
   titleInput.focus();
 });
@@ -204,27 +274,39 @@ list.addEventListener('change', (event) => {
   const paper = papers.find((p) => p.id === select.dataset.id);
   if (!paper || !STATUSES[select.value]) return;
 
-  paper.status = select.value;
-  select.closest('.paper').dataset.status = paper.status;
-  savePapers();
+  if (!updatePaper(paper.id, { status: select.value })) {
+    select.value = paper.status;
+    showHint(STORAGE_ERROR);
+    return;
+  }
+  select.closest('.paper').dataset.status = select.value;
   renderCounter();
 });
 
 // Удаление: спрашиваем подтверждение, потом убираем из списка и localStorage
 list.addEventListener('click', (event) => {
-  const button = event.target.closest('.btn-delete');
+  const button = event.target.closest('.btn-delete[data-id]');
   if (!button) return;
   const index = papers.findIndex((p) => p.id === button.dataset.id);
   if (index === -1) return;
-  if (!confirm(`Удалить статью «${papers[index].title}»?`)) return;
+  const paper = papers[index];
+  const question = hasRecords(paper)
+    ? `Удалить статью «${paper.title}» вместе с выводами?`
+    : `Удалить статью «${paper.title}»?`;
+  if (!confirm(question)) return;
 
-  papers.splice(index, 1);
-  savePapers();
-  render();
+  if (!savePapers(papers.filter((p) => p.id !== paper.id))) {
+    showHint(STORAGE_ERROR);
+    return;
+  }
+  button.closest('.paper').remove();
+  renderCounter();
+  updateRecordsView();
 
   // фокус — на следующую статью, а если статей нет — на поле названия
-  const next = list.children[index] || list.lastElementChild;
-  (next ? next.querySelector('.btn-delete') : titleInput).focus();
+  const visible = [...list.children].filter((item) => !item.hidden);
+  const next = visible.find((item) => [...list.children].indexOf(item) >= index) || visible[visible.length - 1];
+  (next ? next.querySelector('.btn-delete[data-id]') : titleInput).focus();
 });
 
 // Начали исправлять поле — убираем подсказку
@@ -233,5 +315,7 @@ list.addEventListener('click', (event) => {
     if (input.hasAttribute('aria-invalid')) clearHint();
   });
 });
+
+
 
 render();
