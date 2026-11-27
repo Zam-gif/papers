@@ -181,9 +181,15 @@ textarea { resize: vertical; min-height: 110px; }
 .paper-notes { margin-top: 14px; border-top: 1px solid var(--line); }
 .paper-notes summary { min-height: 44px; padding: 12px 0; cursor: pointer; color: var(--accent); font-weight: 600; overflow-wrap: anywhere; }
 .paper-notes summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.notes-content, .notes-form { display: grid; gap: 10px; min-width: 0; }
+.notes-content, .notes-form, .quote-form { display: grid; gap: 10px; min-width: 0; }
 .notes-content { gap: 18px; }
+.notes-content h4 { margin: 0; font-size: 1rem; }
 .record-status { margin: 0; color: var(--muted); font-size: .9rem; }
 .record-status[data-error="true"] { color: var(--danger); }
 .record-status:empty { display: none; }
+.quote-list { display: grid; gap: 12px; padding: 0; margin: 0; list-style: none; }
+.quote-item { min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px; }
+.quote-text { margin: 0 0 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.quote-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.quote-footer p { margin: 0; color: var(--muted); }
 .paper { min-width: 0; }

@@ -35,6 +35,10 @@ function loadPapers() {
         // статьи, добавленные до статусов, получают «Прочитать»
         status: STATUSES[p.status] ? p.status : DEFAULT_STATUS,
         conclusions: typeof p.conclusions === 'string' ? p.conclusions : '',
+        quotes: Array.isArray(p.quotes) ? p.quotes
+          .filter((q) => q && typeof q.text === 'string' && q.text.trim()
+            && Number.isSafeInteger(q.page) && q.page > 0)
+          .map((q) => ({ id: newId(), text: q.text, page: q.page })) : [],
       }));
   } catch {
     return [];
@@ -63,11 +67,43 @@ function recordMessage(element, message, isError = false) {
 }
 
 function hasRecords(paper) {
-  return Boolean(paper.conclusions.trim());
+  return Boolean(paper.conclusions.trim() || paper.quotes.length);
 }
 
 function updateRecordsView() {
   empty.hidden = papers.length > 0;
+}
+
+function renderQuote(quote, paper, quoteList, status) {
+  const item = document.createElement('li');
+  item.className = 'quote-item';
+  const text = document.createElement('blockquote');
+  text.className = 'quote-text';
+  text.textContent = quote.text;
+  const footer = document.createElement('div');
+  footer.className = 'quote-footer';
+  const page = document.createElement('p');
+  page.textContent = `Страница ${quote.page}`;
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.className = 'btn-delete';
+  remove.textContent = 'Удалить цитату';
+  remove.setAttribute('aria-label', `Удалить цитату со страницы ${quote.page}`);
+  remove.addEventListener('click', () => {
+    const current = papers.find((p) => p.id === paper.id);
+    if (!updatePaper(paper.id, { quotes: current.quotes.filter((q) => q.id !== quote.id) })) {
+      recordMessage(status, STORAGE_ERROR, true);
+      return;
+    }
+    const next = item.nextElementSibling || item.previousElementSibling;
+    item.remove();
+    recordMessage(status, 'Цитата удалена.');
+    updateRecordsView();
+    (next ? next.querySelector('button') : quoteList.parentElement.querySelector('textarea')).focus();
+  });
+  footer.append(page, remove);
+  item.append(text, footer);
+  return item;
 }
 
 function renderNotes(paper) {
@@ -106,7 +142,73 @@ function renderNotes(paper) {
   });
   noteForm.append(noteLabel, save, noteStatus);
 
-  content.append(noteForm);
+  const quoteForm = document.createElement('form');
+  quoteForm.className = 'quote-form';
+  quoteForm.noValidate = true;
+  const heading = document.createElement('h4');
+  heading.textContent = 'Цитаты';
+  const quoteLabel = document.createElement('label');
+  quoteLabel.className = 'field';
+  quoteLabel.textContent = 'Текст цитаты';
+  const quoteText = document.createElement('textarea');
+  quoteText.rows = 3;
+  quoteLabel.append(quoteText);
+  const pageLabel = document.createElement('label');
+  pageLabel.className = 'field';
+  pageLabel.textContent = 'Номер страницы';
+  const page = document.createElement('input');
+  page.type = 'text';
+  page.inputMode = 'numeric';
+  page.placeholder = 'Например, 12';
+  pageLabel.append(page);
+  const add = document.createElement('button');
+  add.className = 'btn';
+  add.type = 'submit';
+  add.textContent = 'Добавить цитату';
+  const quoteStatus = document.createElement('p');
+  quoteStatus.className = 'record-status';
+  quoteStatus.id = `quote-status-${paper.id}`;
+  quoteStatus.setAttribute('role', 'status');
+  quoteText.setAttribute('aria-describedby', quoteStatus.id);
+  page.setAttribute('aria-describedby', quoteStatus.id);
+  const quotes = document.createElement('ul');
+  quotes.className = 'quote-list';
+  quotes.setAttribute('aria-label', `Цитаты статьи «${paper.title}»`);
+  quotes.append(...paper.quotes.map((q) => renderQuote(q, paper, quotes, quoteStatus)));
+  for (const field of [quoteText, page]) {
+    field.addEventListener('input', () => {
+      field.removeAttribute('aria-invalid');
+      recordMessage(quoteStatus, '');
+    });
+  }
+  quoteForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    quoteText.removeAttribute('aria-invalid');
+    page.removeAttribute('aria-invalid');
+    const text = quoteText.value.trim();
+    const pageValue = page.value.trim();
+    const pageNumber = Number(pageValue);
+    const invalid = !text ? quoteText : !/^\d+$/.test(pageValue) || !Number.isSafeInteger(pageNumber) || pageNumber < 1 ? page : null;
+    if (invalid) {
+      invalid.setAttribute('aria-invalid', 'true');
+      recordMessage(quoteStatus, !text ? 'Введите текст цитаты.' : 'Введите целый номер страницы больше нуля.', true);
+      invalid.focus();
+      return;
+    }
+    const quote = { id: newId(), text, page: pageNumber };
+    const current = papers.find((p) => p.id === paper.id);
+    if (!updatePaper(paper.id, { quotes: [...current.quotes, quote] })) {
+      recordMessage(quoteStatus, STORAGE_ERROR, true);
+      return;
+    }
+    quotes.append(renderQuote(quote, paper, quotes, quoteStatus));
+    quoteForm.reset();
+    recordMessage(quoteStatus, 'Цитата сохранена.');
+    updateRecordsView();
+    quoteText.focus();
+  });
+  quoteForm.append(heading, quoteLabel, pageLabel, add, quoteStatus);
+  content.append(noteForm, quoteForm, quotes);
   details.append(summary, content);
   return details;
 }
@@ -255,7 +357,7 @@ form.addEventListener('submit', (event) => {
     return;
   }
 
-  const paper = { id: newId(), title, doi, addedAt: Date.now(), status: DEFAULT_STATUS, conclusions: '' };
+  const paper = { id: newId(), title, doi, addedAt: Date.now(), status: DEFAULT_STATUS, conclusions: '', quotes: [] };
   if (!savePapers([paper, ...papers])) {
     showHint(STORAGE_ERROR);
     return;
@@ -291,7 +393,7 @@ list.addEventListener('click', (event) => {
   if (index === -1) return;
   const paper = papers[index];
   const question = hasRecords(paper)
-    ? `Удалить статью «${paper.title}» вместе с выводами?`
+    ? `Удалить статью «${paper.title}» вместе с выводами и цитатами?`
     : `Удалить статью «${paper.title}»?`;
   if (!confirm(question)) return;
 
