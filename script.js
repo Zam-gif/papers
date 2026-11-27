@@ -2,6 +2,7 @@
 
 // Research Paper Tracker: список статей хранится в localStorage
 const STORAGE_KEY = 'papers';
+const STORAGE_READ_ERROR = 'Не удалось прочитать сохранённую библиотеку. Запись заблокирована, чтобы не потерять данные. Проверьте доступ к хранилищу и восстановите данные, затем обновите страницу.';
 
 // Статусы чтения: ключ хранится в localStorage, подпись видна на странице
 const STATUSES = {
@@ -25,12 +26,15 @@ const downloadButton = document.getElementById('download-records');
 const downloadHelp = document.getElementById('download-help');
 const downloadMessage = document.getElementById('download-message');
 
+let storageReadFailed = false;
 let papers = loadPapers();
 
 function loadPapers() {
   try {
-    const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (!Array.isArray(data)) return [];
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === null) return [];
+    const data = JSON.parse(stored);
+    if (!Array.isArray(data)) throw new Error('Сохранённая библиотека должна быть массивом');
     return data
       .filter((p) => p && typeof p.title === 'string' && p.title.trim())
       .map((p) => ({
@@ -47,11 +51,13 @@ function loadPapers() {
           .map((q) => ({ id: newId(), text: q.text, page: q.page })) : [],
       }));
   } catch {
+    storageReadFailed = true;
     return [];
   }
 }
 
 function savePapers(nextPapers) {
+  if (storageReadFailed) return false;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(nextPapers));
     papers = nextPapers;
@@ -92,6 +98,9 @@ function updateRecordsView() {
   searchResult.textContent = query ? `Найдено статей: ${found} из ${papers.length}. Поиск по сохранённым выводам и цитатам.` : '';
   noResults.hidden = !query || found > 0 || papers.length === 0;
   empty.hidden = papers.length > 0;
+  empty.textContent = storageReadFailed
+    ? 'Библиотека недоступна: не удалось прочитать сохранённые данные.'
+    : 'Список пуст — добавьте первую статью.';
   const available = papers.some(hasRecords);
   downloadButton.disabled = !available;
   downloadHelp.textContent = available ? 'Скачивание в формате TXT.' : 'Пока нет сохранённых записей.';
@@ -274,7 +283,7 @@ function showHint(text, input) {
 }
 
 function clearHint() {
-  hint.textContent = '';
+  hint.textContent = storageReadFailed ? STORAGE_READ_ERROR : '';
   titleInput.removeAttribute('aria-invalid');
   doiInput.removeAttribute('aria-invalid');
 }
@@ -364,6 +373,10 @@ function render() {
 form.addEventListener('submit', (event) => {
   event.preventDefault();
   clearHint();
+  if (storageReadFailed) {
+    showHint(STORAGE_READ_ERROR);
+    return;
+  }
 
   const title = titleInput.value.trim();
   const doi = normalizeDoi(doiInput.value);
@@ -476,3 +489,4 @@ downloadButton.addEventListener('click', () => {
 });
 
 render();
+if (storageReadFailed) showHint(STORAGE_READ_ERROR);
