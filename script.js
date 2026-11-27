@@ -18,6 +18,9 @@ const hint = document.getElementById('hint');
 const list = document.getElementById('list');
 const empty = document.getElementById('empty');
 const counter = document.getElementById('counter');
+const recordSearch = document.getElementById('record-search');
+const searchResult = document.getElementById('search-result');
+const noResults = document.getElementById('no-results');
 
 let papers = loadPapers();
 
@@ -70,8 +73,23 @@ function hasRecords(paper) {
   return Boolean(paper.conclusions.trim() || paper.quotes.length);
 }
 
+// Фильтруем существующие карточки, не теряя введённые, но ещё не сохранённые выводы.
 function updateRecordsView() {
+  const query = recordSearch.value.trim().toLocaleLowerCase('ru');
+  let found = 0;
+  for (const item of list.children) {
+    const paper = papers.find((p) => p.id === item.dataset.id);
+    const matches = !query || [paper.conclusions, ...paper.quotes.map((q) => q.text)]
+      .some((text) => text.toLocaleLowerCase('ru').includes(query));
+    item.hidden = !matches;
+    if (matches) found++;
+    // Совпавшие записи сразу доступны для чтения.
+    if (query && matches) item.querySelector('.paper-notes').open = true;
+  }
+  searchResult.textContent = query ? `Найдено статей: ${found} из ${papers.length}. Поиск по сохранённым выводам и цитатам.` : '';
+  noResults.hidden = !query || found > 0 || papers.length === 0;
   empty.hidden = papers.length > 0;
+
 }
 
 function renderQuote(quote, paper, quoteList, status) {
@@ -408,7 +426,7 @@ list.addEventListener('click', (event) => {
   // фокус — на следующую статью, а если статей нет — на поле названия
   const visible = [...list.children].filter((item) => !item.hidden);
   const next = visible.find((item) => [...list.children].indexOf(item) >= index) || visible[visible.length - 1];
-  (next ? next.querySelector('.btn-delete[data-id]') : titleInput).focus();
+  (next ? next.querySelector('.btn-delete[data-id]') : recordSearch.value.trim() ? recordSearch : titleInput).focus();
 });
 
 // Начали исправлять поле — убираем подсказку
@@ -418,6 +436,7 @@ list.addEventListener('click', (event) => {
   });
 });
 
+recordSearch.addEventListener('input', updateRecordsView);
 
 
 render();

@@ -29,7 +29,15 @@
 
     <section class="papers" aria-labelledby="counter">
       <h2 id="counter" class="counter">Всего статей: 0</h2>
+      <div class="card records-toolbar">
+        <label class="field" for="record-search">
+          <span class="label">Поиск по записям</span>
+          <input id="record-search" type="search" placeholder="Слово из вывода или цитаты" aria-describedby="search-result">
+        </label>
+        <p id="search-result" class="record-help" role="status"></p>
+      </div>
       <p id="empty" class="empty">Список пуст — добавьте первую статью.</p>
+      <p id="no-results" class="empty" hidden>По записям ничего не найдено. Измените или очистите поиск.</p>
       <ul id="list" class="list"></ul>
     </section>
   </main>
