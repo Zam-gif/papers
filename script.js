@@ -21,6 +21,9 @@ const counter = document.getElementById('counter');
 const recordSearch = document.getElementById('record-search');
 const searchResult = document.getElementById('search-result');
 const noResults = document.getElementById('no-results');
+const downloadButton = document.getElementById('download-records');
+const downloadHelp = document.getElementById('download-help');
+const downloadMessage = document.getElementById('download-message');
 
 let papers = loadPapers();
 
@@ -89,7 +92,10 @@ function updateRecordsView() {
   searchResult.textContent = query ? `Найдено статей: ${found} из ${papers.length}. Поиск по сохранённым выводам и цитатам.` : '';
   noResults.hidden = !query || found > 0 || papers.length === 0;
   empty.hidden = papers.length > 0;
-
+  const available = papers.some(hasRecords);
+  downloadButton.disabled = !available;
+  downloadHelp.textContent = available ? 'Скачивание в формате TXT.' : 'Пока нет сохранённых записей.';
+  downloadMessage.textContent = '';
 }
 
 function renderQuote(quote, paper, quoteList, status) {
@@ -438,5 +444,35 @@ list.addEventListener('click', (event) => {
 
 recordSearch.addEventListener('input', updateRecordsView);
 
+downloadButton.addEventListener('click', () => {
+  const withRecords = papers.filter(hasRecords);
+  if (!withRecords.length) return;
+  const sections = withRecords.map((paper) => {
+    const lines = [paper.title, paper.doi ? `DOI: ${paper.doi}` : 'DOI не указан'];
+    if (paper.conclusions.trim()) lines.push('', 'Выводы:', paper.conclusions);
+    if (paper.quotes.length) {
+      lines.push('', 'Цитаты:');
+      paper.quotes.forEach((q) => lines.push(`Страница ${q.page}:`, q.text, ''));
+    }
+    return lines.join('\n').trimEnd();
+  });
+  let url;
+  const link = document.createElement('a');
+  try {
+    // BOM помогает текстовым редакторам правильно определить UTF-8.
+    const blob = new Blob(['\uFEFF', sections.join('\n\n────────────────────\n\n') + '\n'], { type: 'text/plain;charset=utf-8' });
+    url = URL.createObjectURL(blob);
+    link.href = url;
+    link.download = `zametki-${formatDate(Date.now()).replace(/\./g, '-')}.txt`;
+    link.hidden = true;
+    document.body.append(link);
+    link.click();
+  } catch {
+    downloadMessage.textContent = 'Не удалось скачать записи. Повторите попытку.';
+  } finally {
+    link.remove();
+    if (url) setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+});
 
 render();
